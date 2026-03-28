@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Name Generator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0f0f1a;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: #e2e8f0;
+    }
+
+    h1 {
+      font-size: 1.2rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #7c85a2;
+      margin-bottom: 2.5rem;
+    }
+
+    #result {
+      font-size: clamp(2rem, 8vw, 4.5rem);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-align: center;
+      min-height: 1.3em;
+      padding: 0 1rem;
+      background: linear-gradient(135deg, #a78bfa, #38bdf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      transition: opacity 0.15s ease;
+    }
+
+    #result.fade { opacity: 0; }
+
+    #copy-hint {
+      margin-top: 0.75rem;
+      font-size: 0.8rem;
+      color: #4a5278;
+      min-height: 1.2em;
+      transition: color 0.3s;
+    }
+
+    #copy-hint.visible { color: #38bdf8; }
+
+    button {
+      margin-top: 2.5rem;
+      padding: 0.8rem 2.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: none;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #7c3aed, #0ea5e9);
+      color: #fff;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.2s;
+      box-shadow: 0 4px 24px rgba(124, 58, 237, 0.35);
+    }
+
+    button:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(124, 58, 237, 0.5); }
+    button:active { transform: translateY(0); }
+
+    #error {
+      margin-top: 1.5rem;
+      color: #f87171;
+      font-size: 0.85rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Name Generator</h1>
+  <div id="result">...</div>
+  <div id="copy-hint">click the name to copy</div>
+  <button id="btn">Generate</button>
+  <div id="error"></div>
+
+  <script>
+    const resultEl  = document.getElementById('result');
+    const hintEl    = document.getElementById('copy-hint');
+    const errorEl   = document.getElementById('error');
+    const btn       = document.getElementById('btn');
+
+    let adjectives = [];
+    let nouns      = [];
+
+    function parseWordList(text) {
+      return text.split(/\r?\n/).map(w => w.trim()).filter(w => w.length > 0);
+    }
+
+    function pick(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function capitalize(str) {
+      return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    function generate() {
+      if (!adjectives.length || !nouns.length) return;
+
+      resultEl.classList.add('fade');
+      setTimeout(() => {
+        const name = capitalize(pick(adjectives)) + ' ' + capitalize(pick(nouns));
+        resultEl.textContent = name;
+        resultEl.classList.remove('fade');
+      }, 150);
+    }
+
+    async function loadWordLists() {
+      try {
+        const [adjRes, nounRes] = await Promise.all([
+          fetch('adjectives.txt'),
+          fetch('nouns.txt')
+        ]);
+
+        if (!adjRes.ok || !nounRes.ok) throw new Error('Could not load word lists.');
+
+        const [adjText, nounText] = await Promise.all([adjRes.text(), nounRes.text()]);
+
+        adjectives = parseWordList(adjText);
+        nouns      = parseWordList(nounText);
+
+        generate();
+      } catch (err) {
+        errorEl.style.display = 'block';
+        errorEl.textContent   = 'Error: ' + err.message + ' (open via a local server or use Live Server extension)';
+        resultEl.textContent  = '—';
+      }
+    }
+
+    // Copy to clipboard on click
+    resultEl.style.cursor = 'pointer';
+    resultEl.addEventListener('click', async () => {
+      const text = resultEl.textContent;
+      if (!text || text === '...' || text === '—') return;
+      try {
+        await navigator.clipboard.writeText(text);
+        hintEl.textContent = 'copied!';
+        hintEl.classList.add('visible');
+        setTimeout(() => {
+          hintEl.textContent = 'click the name to copy';
+          hintEl.classList.remove('visible');
+        }, 1800);
+      } catch {
+        // clipboard not available (e.g. non-secure context)
+      }
+    });
+
+    btn.addEventListener('click', generate);
+
+    // Generate on spacebar / Enter
+    document.addEventListener('keydown', e => {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); generate(); }
+    });
+
+    loadWordLists();
+  </script>
+</body>
+</html>
